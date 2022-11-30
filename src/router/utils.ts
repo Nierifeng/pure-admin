@@ -5,35 +5,32 @@ import {
   createWebHistory,
   createWebHashHistory,
   RouteRecordNormalized
-} from "vue-router";
-import { router } from "./index";
-import { isProxy, toRaw } from "vue";
-import { loadEnv } from "../../build";
-import { useTimeoutFn } from "@vueuse/core";
-import { RouteConfigs } from "@/layout/types";
+} from 'vue-router';
+import { router } from './index';
+import { isProxy, toRaw } from 'vue';
+import { loadEnv } from '../../build';
+import { useTimeoutFn } from '@vueuse/core';
+import { RouteConfigs } from '@/layout/types';
 import {
   isString,
   storageSession,
   isIncludeAllChildren
-} from "@pureadmin/utils";
-import { buildHierarchyTree } from "@/utils/tree";
-import { cloneDeep, intersection } from "lodash-unified";
-import { sessionKey, type DataInfo } from "@/utils/auth";
-import { usePermissionStoreHook } from "@/store/modules/permission";
-const IFrame = () => import("@/layout/frameView.vue");
+} from '@pureadmin/utils';
+import { buildHierarchyTree } from '@/utils/tree';
+import { cloneDeep, intersection } from 'lodash-unified';
+import { sessionKey, type DataInfo } from '@/utils/auth';
+import { usePermissionStoreHook } from '@/store/modules/permission';
+const IFrame = () => import('@/layout/frameView.vue');
 // https://cn.vitejs.dev/guide/features.html#glob-import
-const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
-
-// 动态路由
-import { getAsyncRoutes } from "@/api/routes";
+const modulesRoutes = import.meta.glob('/src/views/**/*.{vue,tsx}');
 
 /** 按照路由中meta下的rank等级升序来排序路由 */
 function ascending(arr: any[]) {
   arr.forEach(v => {
     if (v?.meta?.rank === null) v.meta.rank = undefined;
     if (v?.meta?.rank === 0) {
-      if (v.name !== "Home" && v.path !== "/") {
-        console.warn("rank only the home page can be 0");
+      if (v.name !== 'Home' && v.path !== '/') {
+        console.warn('rank only the home page can be 0');
       }
     }
   });
@@ -90,7 +87,7 @@ function filterNoPermissionTree(data: RouteComponent[]) {
 function delAliveRoutes(delAliveRouteList: Array<RouteConfigs>) {
   delAliveRouteList.forEach(route => {
     usePermissionStoreHook().cacheOperate({
-      mode: "delete",
+      mode: 'delete',
       name: route?.name
     });
   });
@@ -142,11 +139,11 @@ function findRouteByPath(path: string, routes: RouteRecordRaw[]) {
 }
 
 function addPathMatch() {
-  if (!router.hasRoute("pathMatch")) {
+  if (!router.hasRoute('pathMatch')) {
     router.addRoute({
-      path: "/:pathMatch(.*)",
-      name: "pathMatch",
-      redirect: "/error/404"
+      path: '/:pathMatch(.*)',
+      name: 'pathMatch',
+      redirect: '/error/404'
     });
   }
 }
@@ -154,38 +151,9 @@ function addPathMatch() {
 /** 初始化路由 */
 function initRouter() {
   return new Promise(resolve => {
-    getAsyncRoutes().then(({ data }) => {
-      if (data.length === 0) {
-        usePermissionStoreHook().handleWholeMenus(data);
-        resolve(router);
-      } else {
-        formatFlatteningRoutes(addAsyncRoutes(data)).map(
-          (v: RouteRecordRaw) => {
-            // 防止重复添加路由
-            if (
-              router.options.routes[0].children.findIndex(
-                value => value.path === v.path
-              ) !== -1
-            ) {
-              return;
-            } else {
-              // 切记将路由push到routes后还需要使用addRoute，这样路由才能正常跳转
-              router.options.routes[0].children.push(v);
-              // 最终路由进行升序
-              ascending(router.options.routes[0].children);
-              if (!router.hasRoute(v?.name)) router.addRoute(v);
-              const flattenRouters: any = router
-                .getRoutes()
-                .find(n => n.path === "/");
-              router.addRoute(flattenRouters);
-            }
-            resolve(router);
-          }
-        );
-        usePermissionStoreHook().handleWholeMenus(data);
-      }
-      addPathMatch();
-    });
+    usePermissionStoreHook().handleWholeMenus([]);
+    resolve(router);
+    addPathMatch();
   });
 }
 
@@ -217,7 +185,7 @@ function formatTwoStageRoutes(routesList: RouteRecordRaw[]) {
   if (routesList.length === 0) return routesList;
   const newRoutesList: RouteRecordRaw[] = [];
   routesList.forEach((v: RouteRecordRaw) => {
-    if (v.path === "/") {
+    if (v.path === '/') {
       newRoutesList.push({
         component: v.component,
         name: v.name,
@@ -236,25 +204,25 @@ function formatTwoStageRoutes(routesList: RouteRecordRaw[]) {
 /** 处理缓存路由（添加、删除、刷新） */
 function handleAliveRoute(matched: RouteRecordNormalized[], mode?: string) {
   switch (mode) {
-    case "add":
+    case 'add':
       matched.forEach(v => {
-        usePermissionStoreHook().cacheOperate({ mode: "add", name: v.name });
+        usePermissionStoreHook().cacheOperate({ mode: 'add', name: v.name });
       });
       break;
-    case "delete":
+    case 'delete':
       usePermissionStoreHook().cacheOperate({
-        mode: "delete",
+        mode: 'delete',
         name: matched[matched.length - 1].name
       });
       break;
     default:
       usePermissionStoreHook().cacheOperate({
-        mode: "delete",
+        mode: 'delete',
         name: matched[matched.length - 1].name
       });
       useTimeoutFn(() => {
         matched.forEach(v => {
-          usePermissionStoreHook().cacheOperate({ mode: "add", name: v.name });
+          usePermissionStoreHook().cacheOperate({ mode: 'add', name: v.name });
         });
       }, 100);
   }
@@ -272,7 +240,7 @@ function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
       v.redirect = v.children[0].path;
     // 父级的name属性取值：如果子级存在且父级的name属性不存在，默认取第一个子级的name；如果子级存在且父级的name属性存在，取存在的name属性，会覆盖默认值（注意：测试中发现父级的name不能和子级name重复，如果重复会造成重定向无效（跳转404），所以这里给父级的name起名的时候后面会自动加上`Parent`，避免重复）
     if (v?.children && v.children.length && !v.name)
-      v.name = (v.children[0].name as string) + "Parent";
+      v.name = (v.children[0].name as string) + 'Parent';
     if (v.meta?.frameSrc) {
       v.component = IFrame;
     } else {
@@ -293,21 +261,21 @@ function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
 function getHistoryMode(): RouterHistory {
   const routerHistory = loadEnv().VITE_ROUTER_HISTORY;
   // len为1 代表只有历史模式 为2 代表历史模式中存在base参数 https://next.router.vuejs.org/zh/api/#%E5%8F%82%E6%95%B0-1
-  const historyMode = routerHistory.split(",");
+  const historyMode = routerHistory.split(',');
   const leftMode = historyMode[0];
   const rightMode = historyMode[1];
   // no param
   if (historyMode.length === 1) {
-    if (leftMode === "hash") {
-      return createWebHashHistory("");
-    } else if (leftMode === "h5") {
-      return createWebHistory("");
+    if (leftMode === 'hash') {
+      return createWebHashHistory('');
+    } else if (leftMode === 'h5') {
+      return createWebHistory('');
     }
   } //has param
   else if (historyMode.length === 2) {
-    if (leftMode === "hash") {
+    if (leftMode === 'hash') {
       return createWebHashHistory(rightMode);
-    } else if (leftMode === "h5") {
+    } else if (leftMode === 'h5') {
       return createWebHistory(rightMode);
     }
   }

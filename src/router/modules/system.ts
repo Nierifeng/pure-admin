@@ -21,7 +21,7 @@ const systemRouter: RouteConfigsTable = {
       component: () =>
         import('@/views/system/monitoring-management/list/index.vue'),
       meta: {
-        title: '监控管理'
+        title: '监控端管理'
       }
     },
     {

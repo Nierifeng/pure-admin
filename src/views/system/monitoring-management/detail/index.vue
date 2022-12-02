@@ -38,7 +38,7 @@ import { Loading } from '@pureadmin/descriptions';
 import { TabsPaneContext } from 'element-plus';
 import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { Model, Software } from '../../modules';
+import { Model, Software } from '../../modules/index';
 import { useColumns } from './columns';
 const { columns } = useColumns();
 

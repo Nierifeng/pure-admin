@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Software } from '../../modules/software';
 
 const props = defineProps({
   visible: {
@@ -16,16 +15,9 @@ const props = defineProps({
 });
 
 const dialogTableVisible = ref(false);
-const tableData: Array<Software> = [
-  {
-    name: 'Acc',
-    type: '类型',
-    versions: '1.0'
-  }
-];
+const tableData = ref([]);
 
 function closeDialog() {
-  console.log('closeDialog');
   dialogTableVisible.value = false;
 }
 
@@ -44,26 +36,31 @@ watch(
   }
 );
 
-// watch(
-//   () => props.data,
-//   val => {
-//     formData.value = val;
-//   }
-// );
+watch(
+  () => props.data,
+  val => {
+    const data = [];
+    for (const key in val) {
+      if (Object.prototype.hasOwnProperty.call(val, key)) {
+        data.push({ name: key, versions: val[key] });
+      }
+    }
+    tableData.value = data;
+  }
+);
 </script>
 
 <template>
   <el-dialog
     v-model="dialogTableVisible"
     title="软件列表"
-    :width="680"
+    :width="380"
     draggable
     destroy-on-close
     :before-close="closeDialog"
   >
     <el-table :data="tableData">
       <el-table-column property="name" label="软件名称" width="150" />
-      <el-table-column property="type" label="类型" width="200" />
       <el-table-column property="versions" label="版本" />
     </el-table>
     <template #footer>

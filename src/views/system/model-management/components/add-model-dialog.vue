@@ -1,10 +1,26 @@
 <script setup lang="ts">
-import { FormRules, UploadFile, UploadRawFile } from 'element-plus';
-import { onMounted, reactive, ref, watch } from 'vue';
+import { addModel } from '@/api/system/model';
+import { GetSoftVersions, ListCAESoftType } from '@/api/system/workder';
+import {
+  CascaderOption,
+  ElButton,
+  ElCascader,
+  ElDialog,
+  ElForm,
+  ElFormItem,
+  ElInput,
+  ElUpload,
+  FormRules,
+  UploadFile,
+  UploadRawFile,
+  FormInstance,
+  ElMessage
+} from 'element-plus';
 import { Client } from 'minio';
-import SparkMD5 from 'spark-md5';
-import { Chunk, Parse } from '../../modules';
 import { createMinioClient, stream } from 'minio-upload-1';
+import SparkMD5 from 'spark-md5';
+import { onMounted, reactive, ref, watch } from 'vue';
+import { Chunk, Model } from '../../modules/index';
 
 const props = defineProps({
   visible: {
@@ -18,8 +34,9 @@ const props = defineProps({
     }
   }
 });
-const emit = defineEmits(['update:visible']);
+const emit = defineEmits(['update:visible', 'updateList']);
 
+const ruleFormRef = ref<FormInstance>(null);
 const dialogTableVisible = ref(false);
 
 const percent = ref(0);
@@ -46,66 +63,22 @@ let minio: Client | undefined;
 
 const cascaderProps = { multiple: true };
 
-const cascaderOptions = [
-  {
-    value: 1,
-    label: 'cae软件1',
-    children: [
-      {
-        value: 2,
-        label: '1.1'
-      },
-      {
-        value: 3,
-        label: '1.2'
-      },
-      {
-        value: 4,
-        label: '1.4'
-      }
-    ]
-  },
-  {
-    value: 5,
-    label: 'cae软件2',
-    children: [
-      {
-        value: 5,
-        label: '1'
-      },
-      {
-        value: 6,
-        label: '2'
-      }
-    ]
-  },
-  {
-    value: 7,
-    label: 'cae软件3',
-    children: [
-      {
-        value: 8,
-        label: '1-1'
-      },
-      {
-        value: 8,
-        label: '1-2'
-      }
-    ]
-  }
-];
+const cascaderOptions = ref<Array<CascaderOption>>([]);
 
-const formData = reactive<Parse & { version: Array<string> }>({
+let cAESoftTypes = [];
+
+const formData = reactive<Model>({
+  id: '',
   name: '',
-  fileName: '',
-  serverId: '',
-  version: []
+  version: '',
+  description: ''
 });
 
 const rules = reactive<FormRules>({
   name: [
     { required: true, message: '请输入名称', trigger: 'blur', type: 'string' }
-  ]
+  ],
+  versions: [{ required: true, message: '请选择版本', trigger: 'change' }]
 });
 
 watch(
@@ -118,11 +91,95 @@ watch(
 onMounted(() => {
   dialogTableVisible.value = props.visible;
   initMinio();
+  getVersionOptions();
+  getCAESoftType();
 });
 
 function closeDialog() {
   dialogTableVisible.value = false;
 }
+
+async function confirmClick(formEl: FormInstance | undefined) {
+  if (SPFileLoading.value || zipFileLoading.value) {
+    ElMessage({
+      message: '正在文件不能添加，请等待文件上传完成。',
+      type: 'warning'
+    });
+    return;
+  }
+
+  await formEl.validate(async valid => {
+    console.log(valid);
+    if (!valid) {
+      return;
+    }
+    const model: Model = { ...formData };
+    if (!model.mainFilePath) {
+      ElMessage({
+        message: '请上传压缩模型文件',
+        type: 'warning'
+      });
+      return;
+    }
+    if (!model.descriptionFileName) {
+      ElMessage({
+        message: '请上传说明文件',
+        type: 'warning'
+      });
+      return;
+    }
+
+    const versions = model.versions ?? [];
+    if (versions.length > 0) {
+      model.caeSoftType = cAESoftTypes.find(
+        s => s.key.toLowerCase() == versions[0]['0'].toLowerCase()
+      ).value;
+      model.versions = model.versions.reduce((a, b) => {
+        a.push(b['1']);
+        return a;
+      }, []);
+    }
+
+    const required = await addModel(model);
+    console.log(required);
+    ElMessage({
+      message: '新增成功',
+      type: 'success'
+    });
+    emit('updateList');
+    dialogTableVisible.value = false;
+  });
+}
+
+async function getCAESoftType() {
+  const { data } = await ListCAESoftType();
+  cAESoftTypes = data;
+}
+
+async function getVersionOptions() {
+  const { data } = await GetSoftVersions();
+  if (!data) {
+    return;
+  }
+  const options: Array<CascaderOption> = [];
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const cascaderOption: CascaderOption = { children: [] };
+      cascaderOption.label = cascaderOption.value = key;
+      const values = data[key] as Array<string>;
+      for (const item of values) {
+        cascaderOption.children.push({
+          label: item,
+          value: item
+        });
+      }
+      options.push(cascaderOption);
+    }
+  }
+  cascaderOptions.value = options;
+}
+
+//#region 文件上传相关
 
 function initMinio() {
   minio = createMinioClient({
@@ -145,14 +202,18 @@ function initMinio() {
 async function supportingPaperChange(file: UploadFile) {
   SPFileLoading.value = supportingPaper.value = true;
   const fileObj = file.raw;
-  supportingPaperName.value = fileObj.name;
+  formData.descriptionFileName = supportingPaperName.value = fileObj.name;
   const buffer = await fileToBuffer(fileObj);
+
+  const hash = bufferToMD5(buffer);
+  formData.descriptionFilePath = hash;
+
   const bufferStream = new stream.PassThrough();
   // 将buffer写入
   bufferStream.end(Buffer.from(buffer));
   minio.putObject(
     minioBrcketName,
-    fileObj.name,
+    `${hash}/${fileObj.name}`,
     bufferStream,
     fileObj.size,
     err => {
@@ -169,9 +230,10 @@ async function zipChange(file: UploadFile) {
   zipFileLoading.value = true;
   zipUploading.value = true;
   const fileObj = file.raw;
-  zipName.value = fileObj.name;
+  formData.mainFileName = zipName.value = fileObj.name;
   const buffer = await fileToBuffer(fileObj);
   const hash = bufferToMD5(buffer);
+  formData.mainFilePath = hash;
   const stream = minio.listObjects(minioBrcketName, hash, true); // 根据hash值去拿对应的文件夹下的文件
 
   stream.on('data', items => {
@@ -182,6 +244,7 @@ async function zipChange(file: UploadFile) {
     chunkListLength = Math.ceil(fileObj.size / chunkSize); // 计算总共多个切片
     if (fileNames.length === chunkListLength) {
       // 代表文件完全存在不需要上传
+      zipUploading.value = false;
       return;
     }
     upload = true;
@@ -248,7 +311,6 @@ async function uploadChuck() {
         .then(() => {
           // 代表上传成功
           chunkUploadSucceedCount++;
-          console.log(chunkUploadSucceedCount);
           percent.value = (chunkUploadSucceedCount / chunkListLength) * 100;
           uploadChuckList.splice(index, 1);
         })
@@ -282,12 +344,14 @@ function suspendClick() {
     uploadChuck();
   }
 }
+
+//#endregion
 </script>
 
 <template>
   <el-dialog
     v-model="dialogTableVisible"
-    title="添加解析管理"
+    title="添加计算模型管理"
     :width="480"
     draggable
     :before-close="closeDialog"
@@ -296,27 +360,27 @@ function suspendClick() {
   >
     <el-form
       :model="formData"
-      ref="form"
+      ref="ruleFormRef"
       :rules="rules"
       label-width="120px"
       :inline="false"
     >
-      <el-form-item label="名称" required>
-        <el-input v-model="formData.name" />
+      <el-form-item label="名称" required prop="name">
+        <el-input v-model="formData.name" placeholder="请输入名称" />
       </el-form-item>
-      <el-form-item label="服务器名称" required>
+      <!-- <el-form-item label="服务器名称" required>
         <el-input v-model="formData.serverName" readonly />
-      </el-form-item>
-      <el-form-item label="版本" required>
+      </el-form-item> -->
+      <el-form-item label="版本" required prop="versions">
         <el-cascader
           class="version-cascader"
-          v-model="formData.version"
+          v-model="formData.versions"
           :options="cascaderOptions"
           :props="cascaderProps"
           clearable
         />
       </el-form-item>
-      <el-form-item label="程序文件">
+      <el-form-item label="压缩模型文件">
         <span
           class="file-loading"
           v-show="zipFileLoading"
@@ -370,7 +434,9 @@ function suspendClick() {
     <template #footer>
       <span>
         <el-button @click="closeDialog()">关闭</el-button>
-        <el-button @click="closeDialog()">确认</el-button>
+        <el-button type="primary" @click="confirmClick(ruleFormRef)"
+          >确认</el-button
+        >
       </span>
     </template>
   </el-dialog>

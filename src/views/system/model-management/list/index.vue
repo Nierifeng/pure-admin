@@ -1,22 +1,30 @@
 <script setup lang="ts">
 import { TableProBar } from '@/components/ReTable';
 import { type PaginationProps } from '@pureadmin/table';
-import { FormInstance } from 'element-plus';
+import { ElMessage, FormInstance } from 'element-plus';
 import { onMounted, reactive, ref } from 'vue';
 import { useColumns } from './columns';
 import addParseDialog from '../components/add-model-dialog.vue';
+import { deleteModel, getModelList } from '@/api/system/model';
+import { QueryParam } from '@/utils/models';
+import { Model } from '../../modules';
+import { ListCAESoftType } from '@/api/system/workder';
 
 defineOptions({
   name: 'model'
 });
 
 const form = reactive({
-  name: ''
+  name: '',
+  pageIndex: 1,
+  pageSize: 10,
+  caeSoftType: ''
 });
-let dataList = ref([]);
-let loading = ref(true);
-let addParseDialogVis = ref(false);
+const dataList = ref([]);
+const loading = ref(true);
+const addParseDialogVis = ref(false);
 const { columns } = useColumns();
+const cAESoftTypes = ref([]);
 
 const formRef = ref<FormInstance>();
 
@@ -27,16 +35,24 @@ const pagination = reactive<PaginationProps>({
   background: true
 });
 
-function handleDelete(row) {
-  console.log(row);
+async function handleDelete(id: string) {
+  const request = await deleteModel(id);
+  console.log(request);
+  ElMessage({
+    message: '删除成功。',
+    type: 'success'
+  });
+  await onSearch();
 }
 
 function handleCurrentChange(val: number) {
-  console.log(`current page: ${val}`);
+  form.pageIndex = val;
+  onSearch();
 }
 
 function handleSizeChange(val: number) {
-  console.log(`${val} items per page`);
+  form.pageSize = val;
+  onSearch();
 }
 
 function addData() {
@@ -45,12 +61,14 @@ function addData() {
 
 async function onSearch() {
   loading.value = true;
-  let { data } = await getRoleList();
-  dataList.value = data.list;
-  pagination.total = data.total;
-  setTimeout(() => {
-    loading.value = false;
-  }, 500);
+  const { data } = await getModels(form);
+  dataList.value = data.data.map(s => ({
+    ...s,
+    caeSoftTypeLable:
+      cAESoftTypes.value?.find(i => i.value === s.caeSoftType)?.key ?? ''
+  }));
+  pagination.total = data.record;
+  loading.value = false;
 }
 
 const resetForm = (formEl: FormInstance | undefined) => {
@@ -59,42 +77,23 @@ const resetForm = (formEl: FormInstance | undefined) => {
   onSearch();
 };
 
-const getRoleList = async () => {
-  return {
-    success: true,
+const getModels = async (param: QueryParam) => {
+  const request = await getModelList(param);
+  return request as {
     data: {
-      list: [
-        {
-          name: '1',
-          type: '软件类型',
-          version: '1.1',
-          desc: '功能说明',
-          time: new Date(),
-          serverName: '存储服务器名称'
-        },
-        {
-          name: '2',
-          type: '软件类型2',
-          version: '2.1',
-          desc: '功能说明2',
-          time: new Date(),
-          serverName: '存储服务器名称2'
-        },
-        {
-          name: '3',
-          type: '软件类型3',
-          version: '3.1',
-          desc: '功能说明3',
-          time: new Date(),
-          serverName: '存储服务器名称3'
-        }
-      ],
-      total: 6
-    }
+      data: Array<Model>;
+      record: number;
+    };
   };
 };
 
-onMounted(() => {
+async function getCAESoftType() {
+  const { data } = await ListCAESoftType();
+  cAESoftTypes.value = data;
+}
+
+onMounted(async () => {
+  await getCAESoftType();
   onSearch();
 });
 </script>
@@ -109,6 +108,21 @@ onMounted(() => {
     >
       <el-form-item label="名称:" prop="name">
         <el-input v-model="form.name" placeholder="请输入名称" clearable />
+      </el-form-item>
+      <el-form-item label="类型:" prop="caeSoftType">
+        <el-select
+          v-model="form.caeSoftType"
+          placeholder="请选择类型"
+          clearable
+          filterable
+        >
+          <el-option
+            v-for="item in cAESoftTypes"
+            :key="item.value"
+            :label="item.key"
+            :value="item.value"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :loading="loading" @click="onSearch">
@@ -149,8 +163,7 @@ onMounted(() => {
           <template #operation="{ row }">
             <el-popconfirm
               title="是否确认删除?"
-              v-if="row.status !== 1"
-              @confirm="handleDelete(row)"
+              @confirm="handleDelete(row.id)"
             >
               <template #reference>
                 <el-button
@@ -170,6 +183,7 @@ onMounted(() => {
     <addParseDialog
       v-if="addParseDialogVis"
       v-model:visible="addParseDialogVis"
+      @update-list="onSearch"
     />
   </div>
 </template>

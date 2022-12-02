@@ -4,7 +4,7 @@ import { onMounted, reactive, ref, watch } from 'vue';
 import { Client } from 'minio';
 // import { createMinioClient } from 'tz-minio-upload_beta';
 import SparkMD5 from 'spark-md5';
-import { Chunk, Parse } from '../../modules';
+import { Chunk, Parse } from '../../modules/index';
 import { createMinioClient, stream } from 'minio-upload-1';
 
 const props = defineProps({
@@ -39,7 +39,7 @@ const chunkSize = 1024 * 1024 * 10; // 5M一个切片
 
 let chunkList = [];
 let uploadChuckList = [];
-let fileNames: Array<string> = [];
+const fileNames: Array<string> = [];
 let chunkListLength = 0;
 let chunkUploadSucceedCount = 0;
 let upload = false;
@@ -95,7 +95,7 @@ async function supportingPaperChange(file: UploadFile) {
   SPFileLoading.value = supportingPaper.value = true;
   const fileObj = file.raw;
   supportingPaperName.value = fileObj.name;
-  let buffer = await fileToBuffer(fileObj);
+  const buffer = await fileToBuffer(fileObj);
   const bufferStream = new stream.PassThrough();
   // 将buffer写入
   bufferStream.end(Buffer.from(buffer));
@@ -119,7 +119,7 @@ async function zipChange(file: UploadFile) {
   zipUploading.value = true;
   const fileObj = file.raw;
   zipName.value = fileObj.name;
-  let buffer = await fileToBuffer(fileObj);
+  const buffer = await fileToBuffer(fileObj);
   const hash = bufferToMD5(buffer);
   const stream = minio.listObjects(minioBrcketName, hash, true); // 根据hash值去拿对应的文件夹下的文件
 

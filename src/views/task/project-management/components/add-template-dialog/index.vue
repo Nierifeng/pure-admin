@@ -18,7 +18,7 @@ const emit = defineEmits(['update:visible']);
 
 let projectId = '';
 
-let formData = reactive({
+const formData = reactive({
   id: '',
   name: '',
   modelId: '',
@@ -27,15 +27,17 @@ let formData = reactive({
   cmd: ''
 });
 
+const cmdInput = ref<{ input: HTMLInputElement } | null>(null);
+
 const rules = reactive<FormRules>({
   name: [
     { required: true, message: '请输入名称', trigger: 'blur', type: 'string' }
   ]
 });
 
-let modelSelects = ref([]);
+const modelSelects = ref([]);
 
-let modelLists = [
+const modelLists = [
   {
     id: '8848648',
     name: '模型1'
@@ -50,7 +52,7 @@ let modelLists = [
   }
 ];
 
-let taskTemplateTypeOptions = [
+const taskTemplateTypeOptions = [
   {
     label: '类型1',
     value: '1'
@@ -65,7 +67,7 @@ let taskTemplateTypeOptions = [
   }
 ];
 
-let versionOptions = [
+const versionOptions = [
   {
     label: '1.1',
     value: '1'
@@ -95,8 +97,13 @@ function getModelOptions() {
 
 function cmdReplace() {
   console.log(window.getSelection().toString());
+  console.log(cmdInput.value);
+  console.log(cmdInput.value.input.selectionStart);
+  console.log(cmdInput.value.input.selectionEnd);
+}
 
-  console.log('cmdReplace');
+function ccl(ele) {
+  console.log(ele);
 }
 
 watch(
@@ -134,7 +141,6 @@ onMounted(() => {
     :width="680"
     :before-close="closeDialog"
   >
-    <el-input v-model="formData.name" />
     <el-form
       :model="formData"
       ref="form"
@@ -181,6 +187,9 @@ onMounted(() => {
         <div class="flex w-98/100">
           <el-input
             v-model="formData.cmd"
+            ref="cmdInput"
+            @keyup.enter="cmdReplace()"
+            @ref="ccl"
             placeholder="请输入cmd调用语句"
             class="w-6/7 inline-blovck"
           />

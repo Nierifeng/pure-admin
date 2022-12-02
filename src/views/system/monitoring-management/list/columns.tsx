@@ -4,19 +4,19 @@ export function useColumns() {
   const columns = ref([
     { label: 'ip端口', prop: 'ip' },
     { label: '版本号', prop: 'version' },
-    { label: '描述', prop: 'desc' },
-    { label: 'CAE软件', slot: 'software' },
-    { label: '已存在计算模型数量', slot: 'quantityModel' },
+    { label: '描述', prop: 'description' },
+    { label: 'CAE软件', slot: 'workerSofts' },
+    { label: '已存在计算模型数量', slot: 'refTemplateTotal' },
     {
-      label: '开启/停用',
-      prop: 'isOpen',
+      label: '启用/停用',
+      prop: 'enabled',
       width: 130,
       cellRenderer: ({ row, props }) => (
         <el-tag
           size={props.size === 'small' ? 'small' : 'default'}
-          type={row.status === 1 ? 'success' : 'info'}
+          type={row.enabled ? 'success' : 'info'}
         >
-          {row.status === 1 ? '开启' : '停用'}
+          {row.enabled ? '启用' : '停用'}
         </el-tag>
       )
     },
@@ -27,9 +27,9 @@ export function useColumns() {
       cellRenderer: ({ row, props }) => (
         <el-tag
           size={props.size === 'small' ? 'small' : 'default'}
-          type={row.status === 1 ? 'success' : 'info'}
+          type={row.online ? 'success' : 'info'}
         >
-          {row.status === 1 ? '在线' : '离线'}
+          {row.online ? '在线' : '离线'}
         </el-tag>
       )
     },

@@ -1,7 +1,7 @@
 const taskRouter: RouteConfigsTable = {
   path: '/task',
   meta: {
-    icon: 'lock',
+    icon: 'tickets',
     title: '任务管理',
     rank: 2
   },

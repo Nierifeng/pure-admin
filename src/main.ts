@@ -29,6 +29,16 @@ Object.keys(directives).forEach(key => {
   app.directive(key, (directives as { [key: string]: Directive })[key]);
 });
 
+import { Buffer } from 'buffer';
+
+if (typeof (window as any).global === 'undefined') {
+  (window as any).global = window;
+}
+
+if (typeof (window as any).Buffer === 'undefined') {
+  (window as any).Buffer = Buffer;
+}
+
 // 全局注册`@iconify/vue`图标库
 import {
   IconifyIconOffline,

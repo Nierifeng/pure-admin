@@ -1,15 +1,15 @@
-import type { Plugin } from "vite";
-import { isArray } from "@pureadmin/utils";
-import compressPlugin from "vite-plugin-compression";
+import type { Plugin } from 'vite';
+import { isArray } from '@pureadmin/utils';
+import compressPlugin from 'vite-plugin-compression';
 
 export const configCompressPlugin = (
   compress: ViteCompression
 ): Plugin | Plugin[] => {
-  if (compress === "none") return null;
+  if (compress === 'none') return null;
 
   const gz = {
     // 生成的压缩包后缀
-    ext: ".gz",
+    ext: '.gz',
     // 体积大于threshold才会被压缩
     threshold: 0,
     // 默认压缩.js|mjs|json|css|html后缀文件，设置成true，压缩全部文件
@@ -18,24 +18,24 @@ export const configCompressPlugin = (
     deleteOriginFile: false
   };
   const br = {
-    ext: ".br",
-    algorithm: "brotliCompress",
+    ext: '.br',
+    algorithm: 'brotliCompress',
     threshold: 0,
     filter: () => true,
     deleteOriginFile: false
   };
 
   const codeList = [
-    { k: "gzip", v: gz },
-    { k: "brotli", v: br },
-    { k: "both", v: [gz, br] }
+    { k: 'gzip', v: gz },
+    { k: 'brotli', v: br },
+    { k: 'both', v: [gz, br] }
   ];
 
   const plugins: Plugin[] = [];
 
   codeList.forEach(item => {
     if (compress.includes(item.k)) {
-      if (compress.includes("clear")) {
+      if (compress.includes('clear')) {
         if (isArray(item.v)) {
           item.v.forEach(vItem => {
             plugins.push(

@@ -4,11 +4,12 @@ import { useColumns } from './columns';
 import ModelDialog from '../components/model-dialog.vue';
 import SoftwareDislog from '../components/software-dialog.vue';
 import { type PaginationProps } from '@pureadmin/table';
-import { FormInstance } from 'element-plus';
+// import { FormInstance } from 'element-plus';
 import { onMounted, reactive, ref } from 'vue';
 import { useMultiTagsStoreHook } from '@/store/modules/multiTags';
 import { useRouter } from 'vue-router';
 import { getMonitoringList } from '@/api/system/monitoring';
+import { QueryParam } from '@/utils/models';
 
 defineOptions({
   name: 'monitoring'
@@ -16,16 +17,19 @@ defineOptions({
 
 const router = useRouter();
 const form = reactive({
-  ip: ''
+  id: '',
+  pageIndex: 1,
+  pageSize: 10
 });
 
-const softwareDialogVisible = ref(false);
+const workerSoftDialogVisible = ref(false);
+let workerSoft = {};
 const modelDialogVisible = ref(false);
-let dataList = ref<Array<any>>([]);
-let loading = ref(true);
+const dataList = ref<Array<any>>([]);
+const loading = ref(true);
 const { columns } = useColumns();
 
-const formRef = ref<FormInstance>();
+// const formRef = ref<FormInstance>();
 
 const pagination = reactive<PaginationProps>({
   total: 0,
@@ -53,20 +57,22 @@ function showDetail(row) {
 }
 
 function handleCurrentChange(val: number) {
-  console.log(`current page: ${val}`);
+  form.pageIndex = val;
+  onSearch();
 }
 
 function handleSizeChange(val: number) {
-  console.log(`${val} items per page`);
+  form.pageSize = val;
+  onSearch();
 }
 
 function clearModule(row) {
   console.log('clearModule', row);
 }
 
-function softwareList(row) {
-  softwareDialogVisible.value = true;
-  console.log(row, 'row');
+function workerSoftList(row) {
+  workerSoftDialogVisible.value = true;
+  workerSoft = row.workerSofts;
 }
 
 function quantityModelList(row) {
@@ -76,65 +82,34 @@ function quantityModelList(row) {
 
 async function onSearch() {
   loading.value = true;
-  let { data } = await getRoleList();
-  dataList.value = data.list;
-  pagination.total = data.total;
-  setTimeout(() => {
-    loading.value = false;
-  }, 500);
+  const { data } = await getMonitorings(form);
+  dataList.value = data.data;
+  pagination.total = data.record;
+  loading.value = false;
 }
 
-const resetForm = (formEl: FormInstance | undefined) => {
-  if (!formEl) return;
-  formEl.resetFields();
-  onSearch();
+// const resetForm = (formEl: FormInstance | undefined) => {
+//   if (!formEl) return;
+//   formEl.resetFields();
+//   onSearch();
+// };
+
+const getMonitorings = async (param: QueryParam) => {
+  const request = await getMonitoringList(param);
+  return request as {
+    data: {
+      data: Array<any>;
+      record: number;
+    };
+  };
 };
 
-const getRoleList = async () => {
-  // const request = await getMonitoringList({
-  //   pageSize: 10,
-  //   pageIndex: 1
-  // });
-  // console.log(request);
-
-  return {
-    success: true,
-    data: {
-      list: [
-        {
-          ip: '1',
-          version: '1.1',
-          desc: '描述',
-          software: ['软件名'],
-          catalogue: 'a',
-          quantityModel: '',
-          isOpen: true,
-          status: 1
-        },
-        {
-          ip: '2',
-          version: '2.1',
-          desc: '描述2',
-          software: ['软件名2', '软件名3'],
-          catalogue: 'a',
-          quantityModel: '',
-          isOpen: false,
-          status: 2
-        },
-        {
-          ip: '3',
-          version: '3.1',
-          desc: '描述3',
-          software: ['软件名3', '软件名4', '软件名5'],
-          catalogue: 'a',
-          quantityModel: '',
-          isOpen: true,
-          status: 1
-        }
-      ],
-      total: 6
-    }
-  };
+const getWorkerSoftNames = workerSofts => {
+  const names = [];
+  for (const key in workerSofts) {
+    names.push(key);
+  }
+  return names.toString();
 };
 
 onMounted(() => {
@@ -144,7 +119,7 @@ onMounted(() => {
 
 <template>
   <div class="main">
-    <el-form
+    <!-- <el-form
       ref="formRef"
       :inline="true"
       :model="form"
@@ -159,10 +134,10 @@ onMounted(() => {
         </el-button>
         <el-button @click="resetForm(formRef)"> 重置 </el-button>
       </el-form-item>
-    </el-form>
+    </el-form> -->
 
     <TableProBar
-      title="监控管理列表"
+      title="监控端管理列表"
       :loading="loading"
       :dataList="dataList"
       @refresh="onSearch"
@@ -186,24 +161,24 @@ onMounted(() => {
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
         >
-          <template #software="{ row }">
+          <template #workerSofts="{ row }">
             <el-button
               link
               type="primary"
               :size="size"
-              @click="softwareList(row)"
+              @click="workerSoftList(row)"
             >
-              {{ row.software.toString() }}
+              {{ getWorkerSoftNames(row.workerSofts) }}
             </el-button>
           </template>
-          <template #quantityModel="{ row }">
+          <template #refTemplateTotal="{ row }">
             <el-button
               link
               type="primary"
               :size="size"
               @click="quantityModelList(row)"
             >
-              {{ row.quantityModel }}
+              {{ row.refTemplateTotal }}
             </el-button>
           </template>
           <template #operation="{ row }">
@@ -260,7 +235,10 @@ onMounted(() => {
         </PureTable>
       </template>
     </TableProBar>
-    <SoftwareDislog v-model:visible="softwareDialogVisible" />
+    <SoftwareDislog
+      v-model:visible="workerSoftDialogVisible"
+      :data="workerSoft"
+    />
     <ModelDialog v-model:visible="modelDialogVisible" />
   </div>
 </template>
